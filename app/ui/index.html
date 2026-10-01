@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="google" content="notranslate">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>J.A.R.V.I.S</title>
+<style>
+:root{--c:#41f3d0;--c2:#2aa8ff;--amber:#ffb84a;--red:#ff5a5a;--bg:#010609;--txt:#c9fbef;--dim:#5f8f88;--line:rgba(65,243,208,.22)}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font-family:Bahnschrift,"Segoe UI",system-ui,sans-serif;overflow:hidden;user-select:none}
+canvas{position:fixed;inset:0;width:100%;height:100%}
+.scan{position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 1px,transparent 1px 3px);mix-blend-mode:screen}
+.vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,transparent 45%,rgba(0,0,0,.75) 100%)}
+.top{position:fixed;top:18px;left:24px;right:24px;display:flex;align-items:flex-start;justify-content:space-between;pointer-events:none}
+.brand b{display:block;font-weight:600;letter-spacing:.62em;font-size:18px;color:#e8fffa;text-shadow:0 0 18px rgba(65,243,208,.55)}
+.brand small{display:block;margin-top:5px;letter-spacing:.32em;font-size:9px;color:var(--dim)}
+.clock{text-align:right;font-variant-numeric:tabular-nums}
+.clock b{display:block;font-size:26px;font-weight:300;letter-spacing:.08em;color:#e8fffa}
+.clock small{display:block;font-size:10px;letter-spacing:.3em;color:var(--dim);text-transform:uppercase;margin-top:2px}
+.pill{position:fixed;top:74px;left:50%;transform:translateX(-50%);padding:6px 18px;border:1px solid var(--line);border-radius:2px;font-size:11px;letter-spacing:.42em;text-transform:uppercase;color:var(--c);background:rgba(4,22,24,.55);backdrop-filter:blur(4px);transition:color .3s,border-color .3s}
+.pill i{display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;margin-right:10px;vertical-align:1px;box-shadow:0 0 10px currentColor;animation:blink 1.4s infinite}
+@keyframes blink{50%{opacity:.25}}
+.box{position:fixed;width:270px;padding:14px 16px 12px;background:linear-gradient(180deg,rgba(6,28,30,.62),rgba(3,14,16,.5));border:1px solid var(--line);backdrop-filter:blur(3px)}
+.box::before,.box::after{content:"";position:absolute;width:14px;height:14px;border:2px solid var(--c);opacity:.8}
+.box::before{top:-2px;left:-2px;border-right:0;border-bottom:0}
+.box::after{bottom:-2px;right:-2px;border-left:0;border-top:0}
+.box h3{margin:0 0 10px;font-size:10px;font-weight:600;letter-spacing:.38em;color:var(--c);opacity:.85}
+.sys{left:24px;top:132px}
+.row{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:5px 0;border-bottom:1px dashed rgba(65,243,208,.12)}
+.row:last-child{border-bottom:0}
+.row span{color:var(--dim);letter-spacing:.12em;font-size:10px;text-transform:uppercase;padding-top:2px}
+.row b{font-weight:400;text-align:right;color:#e3fff9;font-variant-numeric:tabular-nums}
+.bar{height:3px;background:rgba(65,243,208,.12);margin-top:10px;overflow:hidden}
+.bar u{display:block;height:100%;width:30%;background:var(--c);box-shadow:0 0 10px var(--c);transition:width .4s}
+.logbox{right:24px;top:132px;width:330px}
+.log{font:11px/1.55 Consolas,"Cascadia Mono",monospace;color:#8fd9c9;height:min(44vh,330px);overflow:hidden;white-space:pre-wrap;word-break:break-word;-webkit-mask-image:linear-gradient(180deg,transparent,#000 22%)}
+.log .e{color:#ff8b8b}.log .j{color:#e8fffa}
+.panel{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);width:min(820px,calc(100% - 40px));text-align:center}
+.heard{font-size:13px;letter-spacing:.06em;color:var(--dim);min-height:20px}
+.heard:not(:empty)::before{content:"\203A  ";color:var(--c)}
+.reply{font-size:19px;line-height:1.5;margin-top:8px;min-height:58px;color:#effffb;text-shadow:0 0 14px rgba(65,243,208,.25)}
+.reply .cur{display:inline-block;width:8px;height:1.05em;background:var(--c);vertical-align:-2px;margin-left:3px;animation:blink 1s infinite}
+.btns{margin-top:14px;display:flex;gap:12px;justify-content:center}
+button{position:relative;background:rgba(5,26,28,.6);color:var(--c);border:1px solid rgba(65,243,208,.35);padding:10px 26px;letter-spacing:.32em;font:600 11px Bahnschrift,"Segoe UI",sans-serif;cursor:pointer;clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);transition:background .2s}
+button:hover{background:rgba(65,243,208,.16)}
+button.stop{color:#ffb3b3;border-color:rgba(255,120,120,.35)}
+.foot{position:fixed;left:24px;bottom:18px;font-size:9px;letter-spacing:.3em;color:#3f6660}
+body.think{--c:#56b6ff;--line:rgba(86,182,255,.25)}
+body.err{--c:#ff6262;--line:rgba(255,98,98,.3)}
+body.idle .pill{color:#7fbfb3}
+@media(max-width:1100px){.logbox{display:none}}
+@media(max-width:760px){.sys{display:none}.pill{top:68px}}
+</style>
+</head>
+<body class="idle">
+<canvas id="c"></canvas>
+<div class="scan"></div><div class="vig"></div>
+<div class="top">
+  <div class="brand"><b>J.A.R.V.I.S</b><small>JUST A RATHER VERY INTELLIGENT SYSTEM</small></div>
+  <div class="clock"><b id="clk">--:--:--</b><small id="date"></small></div>
+</div>
+<div class="pill" id="pill"><i></i><span id="status">pornire</span></div>
+<div class="box sys">
+  <h3>SISTEM</h3>
+  <div class="row"><span>Stare</span><b id="s-state">—</b></div>
+  <div class="row"><span>Creier</span><b id="s-brain">—</b></div>
+  <div class="row"><span>Urechi</span><b id="s-ears">—</b></div>
+  <div class="row"><span>Ultimul răspuns</span><b id="s-lat">—</b></div>
+  <div class="row"><span>Comenzi</span><b id="s-cmd">0</b></div>
+  <div class="row"><span>Online de</span><b id="s-up">—</b></div>
+  <div class="bar"><u id="s-bar"></u></div>
+</div>
+<div class="box logbox"><h3>JURNAL</h3><div class="log" id="log"></div></div>
+<div class="panel">
+  <div class="heard" id="heard"></div>
+  <div class="reply" id="reply"></div>
+  <div class="btns">
+    <button onclick="fetch('/talk',{method:'POST'})">VORBEȘTE</button>
+    <button class="stop" onclick="fetch('/stop',{method:'POST'})">STOP</button>
+  </div>
+</div>
+<div class="foot">D:\JARVIS · LOCAL · v2</div>
+<script>
+const cv=document.getElementById('c'),g=cv.getContext('2d');let W,H,D=devicePixelRatio||1;
+function size(){W=cv.width=innerWidth*D;H=cv.height=innerHeight*D}size();addEventListener('resize',size);
+let S={state:'pornire'},energy=.3,t=0,flash=0;
+const COL={asteapta:[65,243,208],asculta:[65,243,208],vorbeste:[65,243,208],pornire:[65,243,208],gandeste:[86,182,255],eroare:[255,98,98]};
+let col=[65,243,208];
+const LABEL={pornire:'se încarcă',asteapta:'spune „Jarvis”',asculta:'te ascult',gandeste:'procesez',vorbeste:'răspund',eroare:'eroare'};
+const STATE_RO={pornire:'Inițializare',asteapta:'Standby',asculta:'Ascultă',gandeste:'Procesează',vorbeste:'Vorbește',eroare:'Eroare'};
+const dust=Array.from({length:120},()=>({x:Math.random(),y:Math.random(),v:.0002+Math.random()*.0006,z:Math.random()}));
+const bars=new Array(96).fill(0);
+function rgba(a){return `rgba(${col[0]|0},${col[1]|0},${col[2]|0},${a})`}
+function hex(cx,cy,r){g.beginPath();for(let i=0;i<6;i++){const a=Math.PI/3*i+Math.PI/6;const x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;i?g.lineTo(x,y):g.moveTo(x,y)}g.closePath()}
+function ring(cx,cy,r,w,a0,a1,alpha){g.beginPath();g.arc(cx,cy,r,a0,a1);g.lineWidth=w*D;g.strokeStyle=rgba(alpha);g.stroke()}
+function draw(){
+  t++;const st=S.state;const tgt=COL[st]||COL.asteapta;for(let i=0;i<3;i++)col[i]+=(tgt[i]-col[i])*.08;
+  const target={asculta:.6,gandeste:.85,vorbeste:1,asteapta:.22,pornire:.4,eroare:.3}[st]??.3;energy+=(target-energy)*.06;flash*=.92;
+  g.fillStyle='rgba(1,6,9,.38)';g.fillRect(0,0,W,H);
+  const mx=W/2,my=H*.43,R=Math.min(W,H)*.185;
+  // grid hexagonal discret
+  if(t%2===0){g.lineWidth=1*D;g.strokeStyle=rgba(.035);const s=46*D;for(let y=0;y<H+s;y+=s*.86){for(let x=((y/(s*.86))%2)*s/2;x<W+s;x+=s){hex(x,y,s*.5);g.stroke()}}}
+  // praf
+  for(const p of dust){p.y-=p.v*(1+energy*2);if(p.y<0)p.y=1;g.fillStyle=rgba(.08+p.z*.25);g.fillRect(p.x*W,p.y*H,1.4*D,1.4*D)}
+  // inele exterioare cu gradatii
+  g.save();g.translate(mx,my);
+  g.rotate(t*.0016);g.lineWidth=1*D;
+  for(let i=0;i<120;i++){const a=i/120*Math.PI*2,l=i%10===0?14:i%5===0?8:4;g.beginPath();g.moveTo(Math.cos(a)*(R*1.62),Math.sin(a)*(R*1.62));g.lineTo(Math.cos(a)*(R*1.62+l*D),Math.sin(a)*(R*1.62+l*D));g.strokeStyle=rgba(i%10===0?.55:.22);g.stroke()}
+  g.restore();
+  ring(mx,my,R*1.55,1,0,Math.PI*2,.18);
+  // arce segmentate care se rotesc
+  const sp=1+energy*2.4;
+  for(let k=0;k<4;k++){const a=t*.006*sp*(k%2?-1:1)+k;for(let s=0;s<3;s++){const b=a+s*Math.PI*2/3;ring(mx,my,R*(1.42-k*.1),k===0?3:1.6,b,b+.55+energy*.5,.75-k*.13)}}
+  // bare audio in jurul nucleului
+  const n=bars.length;
+  for(let i=0;i<n;i++){
+    const want=st==='vorbeste'?(.35+.65*Math.abs(Math.sin(t*.13+i*.55)*Math.sin(t*.041+i*.17))):st==='asculta'?(.15+.35*Math.abs(Math.sin(t*.09+i*.4))):st==='gandeste'?(.25*Math.max(0,Math.sin(i/n*Math.PI*2-t*.12))):.05+.04*Math.sin(t*.03+i);
+    bars[i]+=(want-bars[i])*.25;
+    const a=i/n*Math.PI*2-Math.PI/2,r0=R*.9,r1=r0+bars[i]*R*.42;
+    g.beginPath();g.moveTo(mx+Math.cos(a)*r0,my+Math.sin(a)*r0);g.lineTo(mx+Math.cos(a)*r1,my+Math.sin(a)*r1);g.lineWidth=2.2*D;g.strokeStyle=rgba(.35+bars[i]*.6);g.stroke();
+  }
+  // nucleu
+  const pulse=1+Math.sin(t*.08)*.03*energy+flash*.08;
+  const grd=g.createRadialGradient(mx,my,0,mx,my,R*.82*pulse);
+  grd.addColorStop(0,rgba(.55*energy+.15));grd.addColorStop(.35,rgba(.16*energy+.04));grd.addColorStop(1,rgba(0));
+  g.fillStyle=grd;g.beginPath();g.arc(mx,my,R*.82*pulse,0,Math.PI*2);g.fill();
+  g.shadowColor=rgba(1);g.shadowBlur=26*D*energy;ring(mx,my,R*.82*pulse,2.4,0,Math.PI*2,.9);g.shadowBlur=0;
+  ring(mx,my,R*.7,1,0,Math.PI*2,.35);
+  // hexagoane in nucleu
+  g.save();g.translate(mx,my);g.rotate(-t*.004*sp);
+  for(let i=0;i<6;i++){const a=i/6*Math.PI*2;hex(Math.cos(a)*R*.36,Math.sin(a)*R*.36,R*.13);g.lineWidth=1.2*D;g.strokeStyle=rgba(.25+energy*.35);g.stroke()}
+  hex(0,0,R*.16);g.fillStyle=rgba(.12+energy*.3);g.fill();g.strokeStyle=rgba(.9);g.lineWidth=1.6*D;g.stroke();
+  g.restore();
+  // baleiaj radar cand proceseaza
+  if(st==='gandeste'){const a=t*.09;const sw=g.createConicGradient?g.createConicGradient(a,mx,my):null;if(sw){sw.addColorStop(0,rgba(.28));sw.addColorStop(.12,rgba(0));sw.addColorStop(1,rgba(0));g.fillStyle=sw;g.beginPath();g.arc(mx,my,R*1.5,0,Math.PI*2);g.fill()}}
+  requestAnimationFrame(draw);
+}
+draw();
+// ceas
+const ZILE=['duminică','luni','marți','miercuri','joi','vineri','sâmbătă'],LUNI=['ian','feb','mar','apr','mai','iun','iul','aug','sep','oct','nov','dec'];
+function clock(){const d=new Date();document.getElementById('clk').textContent=d.toTimeString().slice(0,8);document.getElementById('date').textContent=`${ZILE[d.getDay()]} · ${d.getDate()} ${LUNI[d.getMonth()]} ${d.getFullYear()}`}
+setInterval(clock,1000);clock();
+// stare
+const t0=Date.now();let prev='',thinkStart=0,cmds=0,shown='',typed='',lastReply='';
+const $=id=>document.getElementById(id);
+function esc(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+function typer(){if(typed.length<lastReply.length){typed=lastReply.slice(0,typed.length+3);$('reply').innerHTML=esc(typed)+'<span class="cur"></span>'}else if(shown!==lastReply){shown=lastReply;$('reply').innerHTML=esc(lastReply)}}
+setInterval(typer,22);
+function up(){const s=Math.floor((Date.now()-t0)/1000);return (s>=3600?Math.floor(s/3600)+'h ':'')+String(Math.floor(s%3600/60)).padStart(2,'0')+'m '+String(s%60).padStart(2,'0')+'s'}
+async function poll(){
+  try{
+    S=await(await fetch('/state',{cache:'no-store'})).json();
+    const st=S.state;
+    if(st!==prev){
+      if(st==='gandeste'){thinkStart=performance.now();cmds++;$('s-cmd').textContent=cmds}
+      if(prev==='gandeste'&&st!=='gandeste'&&thinkStart){$('s-lat').textContent=((performance.now()-thinkStart)/1000).toFixed(1)+' s'}
+      if(st==='vorbeste')flash=1;
+      document.body.className=st==='gandeste'?'think':st==='eroare'?'err':st==='asteapta'?'idle':'';
+      prev=st;
+    }
+    $('status').textContent=LABEL[st]||st;$('s-state').textContent=STATE_RO[st]||st;
+    $('heard').textContent=S.heard||'';
+    const r=S.reply||'';if(r!==lastReply){lastReply=r;typed='';shown=''}
+    const info=S.info||'';const m=info.match(/Urechi:\s*([^|]+)\|\s*Creier:\s*(.+)/);
+    if(m){$('s-ears').textContent=m[1].trim().replace(' pe ',' · ');$('s-brain').textContent=m[2].trim().replace('gemini-','')}
+    $('s-up').textContent=up();
+    $('s-bar').style.width=({asteapta:18,asculta:55,gandeste:85,vorbeste:100,pornire:35,eroare:10}[st]||20)+'%';
+    $('log').innerHTML=(S.log||[]).slice(-22).map(l=>`<div class="${/eroare|Error|indisponibil/i.test(l)?'e':/Jarvis:/.test(l)?'j':''}">${esc(l)}</div>`).join('');
+  }catch(e){S={state:'eroare'};$('status').textContent='jarvis e oprit';document.body.className='err'}
+  setTimeout(poll,200);
+}
+poll();
+</script>
+</body>
+</html>

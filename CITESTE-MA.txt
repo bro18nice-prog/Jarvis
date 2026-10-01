@@ -1,0 +1,10 @@
+JARVIS - asistent vocal pentru Windows
+
+1. Ruleaza INSTALEAZA.bat in folderul proiectului.
+2. Deschide DESCHIDE-PANOU.bat si completeaza cheia Gemini.
+3. Porneste Jarvis din panou. Pentru consola: PORNESTE-JARVIS.bat.
+
+Spune "Jarvis, cat e ceasul?" sau foloseste butonul VORBESTE.
+Gmail si WhatsApp sunt integrari optionale.
+Vezi README.md pentru instalare, structura, limite si datele trimise serviciilor online.
+Cheile, contactele, notitele si jurnalele sunt locale si nu trebuie publicate.
