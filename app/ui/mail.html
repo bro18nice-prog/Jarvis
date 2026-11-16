@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jarvis · Mail</title>
+<style>
+:root{--c:#41f3d0;--bg:#03090c;--panel:rgba(8,30,32,.6);--line:rgba(65,243,208,.2);--txt:#d6fff6;--dim:#6f9d95;--red:#ff7b7b;--gold:#ffcf6a}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at 50% -10%,#0b2a2c 0,#03090c 60%) fixed;color:var(--txt);font:14px/1.45 Bahnschrift,"Segoe UI",system-ui,sans-serif}
+header{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:16px;padding:16px 26px;background:rgba(3,9,12,.88);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+header h1{margin:0;font-size:16px;letter-spacing:.5em;font-weight:600}
+header .sub{color:var(--dim);font-size:12px;letter-spacing:.08em}
+header .sp{flex:1}
+button{background:rgba(6,32,34,.7);color:var(--c);border:1px solid rgba(65,243,208,.4);padding:8px 16px;font:600 11px Bahnschrift,"Segoe UI",sans-serif;letter-spacing:.2em;cursor:pointer;clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px)}
+button:hover{background:rgba(65,243,208,.15)}
+button.red{color:var(--red);border-color:rgba(255,123,123,.45)}
+button.small{padding:5px 10px;font-size:10px;letter-spacing:.12em}
+button:disabled{opacity:.4;cursor:default}
+main{max-width:1180px;margin:0 auto;padding:22px 26px 120px}
+.safe{border:1px solid var(--line);background:var(--panel);padding:12px 16px;margin-bottom:18px;color:#a9e8db;font-size:13px}
+.safe b{color:var(--c)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 14px}
+.tab{padding:8px 14px;border:1px solid var(--line);cursor:pointer;color:var(--dim);font-size:12px;letter-spacing:.12em;text-transform:uppercase}
+.tab.on{color:var(--c);border-color:var(--c);background:rgba(65,243,208,.08)}
+.tab i{font-style:normal;color:var(--gold);margin-left:6px}
+.box{border:1px solid var(--line);background:var(--panel);margin-bottom:10px}
+.grp{display:grid;grid-template-columns:28px 1fr auto auto;gap:12px;align-items:center;padding:10px 14px;cursor:pointer}
+.grp:hover{background:rgba(65,243,208,.05)}
+.grp .who b{display:block;font-weight:500}
+.grp .who small{color:var(--dim)}
+.cnt{color:var(--gold);font-variant-numeric:tabular-nums}
+.msgs{display:none;border-top:1px dashed var(--line)}
+.open .msgs{display:block}
+.msg{display:grid;grid-template-columns:28px 1fr 96px;gap:12px;padding:6px 14px 6px 40px;font-size:13px;border-bottom:1px solid rgba(65,243,208,.06)}
+.msg .d{color:var(--dim);text-align:right;font-variant-numeric:tabular-nums}
+.msg.unread .s{color:#fff;font-weight:600}
+input[type=checkbox]{accent-color:#41f3d0;width:16px;height:16px;cursor:pointer}
+.row{display:grid;grid-template-columns:1.2fr 70px 70px 1.6fr 170px;gap:12px;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(65,243,208,.08);font-size:13px}
+.row.h{color:var(--dim);font-size:10px;letter-spacing:.18em;text-transform:uppercase}
+.row small{color:var(--dim)}
+.imp{padding:9px 14px;border-bottom:1px solid rgba(65,243,208,.08);display:grid;grid-template-columns:1fr 2fr 90px;gap:12px;font-size:13px}
+.imp .d{color:var(--dim);text-align:right}
+.bar{position:fixed;left:0;right:0;bottom:0;display:flex;align-items:center;gap:14px;padding:14px 26px;background:rgba(3,9,12,.94);border-top:1px solid var(--line)}
+.bar .sp{flex:1}
+.bar b{color:var(--gold)}
+.tools{display:flex;gap:8px;margin:0 0 12px}
+.empty{color:var(--dim);padding:18px;text-align:center}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:10}
+.modal.on{display:flex}
+.modal .card{width:min(640px,92vw);max-height:80vh;overflow:auto;background:#06171a;border:1px solid var(--c);padding:22px}
+.modal h2{margin:0 0 10px;font-size:15px;letter-spacing:.2em;color:var(--c)}
+.modal ul{margin:10px 0 16px;padding-left:18px;color:#bfeee4;font-size:13px}
+.modal .acts{display:flex;gap:10px;justify-content:flex-end}
+.busy{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(3,9,12,.75);z-index:9;color:var(--c);letter-spacing:.3em}
+.busy.on{display:flex}
+.toast{position:fixed;right:20px;bottom:80px;background:#06171a;border:1px solid var(--c);padding:10px 16px;display:none;z-index:11}
+.toast.on{display:block}
+</style>
+</head>
+<body>
+<header>
+  <h1>MAIL</h1>
+  <span class="sub" id="when">nicio scanare încă</span>
+  <span class="sp"></span>
+  <button onclick="scan()">SCANEAZĂ ACUM</button>
+</header>
+<main>
+  <div class="safe"><b>Siguranță:</b> totul se face pe laptop, nimic nu pleacă la Gemini. Jarvis citește doar expeditorul, subiectul și data, nu și conținutul. Nu șterge nimic singur: tu bifezi ce vrei, iar mailurile bifate se mută în <b>Coșul Gmail</b>, de unde le poți recupera 30 de zile. Mailurile cu stea, cu atașamente, de la expeditori protejați sau cu cuvinte sensibile (facturi, bancă, parole, contracte, școală…) <b>nu apar niciodată aici</b>.<span id="skipped"></span></div>
+  <div class="tabs" id="tabs"></div>
+  <div id="view"><div class="empty">Apasă „Scanează acum”.</div></div>
+</main>
+<div class="bar"><span><b id="selcount">0</b> mailuri bifate</span><span class="sp"></span><button class="red" id="trashbtn" disabled onclick="confirmTrash()">MUTĂ ÎN COȘ</button></div>
+<div class="modal" id="modal"><div class="card"><h2 id="mt"></h2><div id="mb"></div><div class="acts"><button onclick="closeModal()">ANULEAZĂ</button><button class="red" id="mok">CONFIRM</button></div></div></div>
+<div class="busy" id="busy">SE LUCREAZĂ…</div>
+<div class="toast" id="toast"></div>
+<script>
+let R=null,tab='important';const sel=new Set();
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function toast(t){const e=$('toast');e.textContent=t;e.classList.add('on');setTimeout(()=>e.classList.remove('on'),4000)}
+function busy(on){$('busy').classList.toggle('on',on)}
+async function api(p,b){const r=await fetch(p,{method:b?'POST':'GET',headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});return r.json()}
+async function load(){const r=await api('/api/mail/last');if(r&&r.groups){R=r;render()}}
+async function scan(){busy(true);try{const r=await api('/api/mail/scan',{});if(r.error){toast(r.error)}else{R=r;sel.clear();render();toast('Scanare gata. Nu s-a șters nimic.')}}finally{busy(false)}}
+function tabs(){
+  const t=[['important','Importante necitite',R.important.length]];
+  R.groups.forEach(g=>t.push([g.key,g.label,g.count]));
+  t.push(['abonamente','Abonamente',R.subscriptions.length]);
+  $('tabs').innerHTML=t.map(([k,l,n])=>`<div class="tab ${k===tab?'on':''}" onclick="tab='${k}';render()">${esc(l)}<i>${n}</i></div>`).join('');
+}
+function render(){
+  if(!R)return;$('when').textContent='ultima scanare: '+R.time;
+  const sk=Object.entries(R.skipped||{});$('skipped').innerHTML=sk.length?'<br>Protejate la ultima scanare: '+sk.map(([k,v])=>`${v} (${esc(k)})`).join(', '):'';
+  tabs();const v=$('view');
+  if(tab==='important'){
+    v.innerHTML=R.important.length?'<div class="box">'+R.important.map(m=>`<div class="imp"><span>${esc(m.name)}<br><small style="color:var(--dim)">${esc(m.addr)}</small></span><span>${esc(m.subject)}</span><span class="d">${esc(m.date)}</span></div>`).join('')+'</div>':'<div class="empty">Nimic important necitit în ultimele 3 zile.</div>';
+  }else if(tab==='abonamente'){
+    v.innerHTML='<div class="box"><div class="row h"><span>Expeditor</span><span>6 luni</span><span>Necitite</span><span>Ultimul mail</span><span></span></div>'+
+      (R.subscriptions.map((s,i)=>`<div class="row"><span>${esc(s.name)}<br><small>${esc(s.addr)}</small></span><span class="cnt">${s.count}</span><span>${s.unread}</span><span>${esc(s.subject)}<br><small>${esc(s.last)}</small></span><span>${s.link?`<button class="small red" onclick="unsub(${i})">${s.oneclick?'DEZABONEAZĂ':'LINK DEZABONARE'}</button>`:'<small>fără link</small>'}</span></div>`).join('')||'<div class="empty">Niciun abonament găsit.</div>')+'</div>';
+  }else{
+    const g=R.groups.find(x=>x.key===tab);if(!g){v.innerHTML='';return}
+    v.innerHTML=`<div class="tools"><button class="small" onclick="selAll('${g.key}',true)">BIFEAZĂ TOT (${g.count})</button><button class="small" onclick="selAll('${g.key}',false)">DEBIFEAZĂ TOT</button></div>`+
+      (g.senders.map((s,i)=>`<div class="box" id="b${i}"><div class="grp" onclick="if(event.target.tagName!=='INPUT'&&event.target.tagName!=='BUTTON')this.parentElement.classList.toggle('open')">
+        <input type="checkbox" ${s.msgs.every(m=>sel.has(m.id))?'checked':''} onchange="selGroup('${g.key}',${i},this.checked)">
+        <span class="who"><b>${esc(s.name)}</b><small>${esc(s.addr)}</small></span><span class="cnt">${s.count}</span>
+        <button class="small" onclick="protect('${esc(s.addr)}')">PROTEJEAZĂ</button></div>
+        <div class="msgs">${s.msgs.map(m=>`<label class="msg ${m.seen?'':'unread'}"><input type="checkbox" ${sel.has(m.id)?'checked':''} onchange="tog('${m.id}',this.checked)"><span class="s">${esc(m.subject)}</span><span class="d">${esc(m.date)}</span></label>`).join('')}</div></div>`).join('')||'<div class="empty">Nimic de curățat aici.</div>');
+  }
+  upd();
+}
+function upd(){$('selcount').textContent=sel.size;$('trashbtn').disabled=!sel.size}
+function tog(id,on){on?sel.add(id):sel.delete(id);upd()}
+function selGroup(k,i,on){R.groups.find(x=>x.key===k).senders[i].msgs.forEach(m=>on?sel.add(m.id):sel.delete(m.id));render();document.getElementById('b'+i)?.classList.add('open')}
+function selAll(k,on){R.groups.find(x=>x.key===k).senders.forEach(s=>s.msgs.forEach(m=>on?sel.add(m.id):sel.delete(m.id)));render()}
+function modal(title,html,ok){$('mt').textContent=title;$('mb').innerHTML=html;$('mok').onclick=ok;$('modal').classList.add('on')}
+function closeModal(){$('modal').classList.remove('on')}
+function confirmTrash(){
+  const by={};R.groups.forEach(g=>g.senders.forEach(s=>s.msgs.forEach(m=>{if(sel.has(m.id))by[s.name+' <'+s.addr+'>']=(by[s.name+' <'+s.addr+'>']||0)+1})));
+  const items=Object.entries(by).sort((a,b)=>b[1]-a[1]);
+  modal(`MUT ${sel.size} MAILURI ÎN COȘ?`,`<div>De la ${items.length} expeditori. Le poți recupera din Coșul Gmail timp de 30 de zile.</div><ul>${items.slice(0,25).map(([k,n])=>`<li>${esc(k)}: ${n}</li>`).join('')}${items.length>25?`<li>…și încă ${items.length-25}</li>`:''}</ul>`,doTrash);
+}
+async function doTrash(){closeModal();busy(true);try{const r=await api('/api/mail/trash',{id:R.id,ids:[...sel]});if(r.error){toast(r.error)}else{
+  R.groups.forEach(g=>{g.senders.forEach(s=>s.msgs=s.msgs.filter(m=>!sel.has(m.id)));g.senders=g.senders.filter(s=>s.msgs.length);g.senders.forEach(s=>s.count=s.msgs.length);g.count=g.senders.reduce((a,s)=>a+s.count,0)});
+  sel.clear();render();toast(`Mutate în Coș: ${r.moved}`+(r.failed?` · nereușite: ${r.failed}`:''))}}finally{busy(false)}}
+function unsub(i){const s=R.subscriptions[i];
+  modal('DEZABONARE',`<div>Te dezabonez de la <b>${esc(s.name)}</b> (${esc(s.addr)})?<br><br>${s.oneclick?'Jarvis trimite cererea standard de dezabonare direct expeditorului.':'Expeditorul nu permite dezabonare automată. Se deschide linkul și confirmi tu acolo.'}</div><br>`,async()=>{closeModal();
+  if(!s.oneclick){window.open(s.link,'_blank');return}
+  busy(true);try{const r=await api('/api/mail/unsub',{addr:s.addr});toast(r.msg||'Gata');if(r.manual&&r.link)window.open(r.link,'_blank')}finally{busy(false)}})}
+async function protect(addr){
+  modal('PROTEJEZ EXPEDITORUL?',`<div>Mailurile de la <b>${esc(addr)}</b> nu vor mai apărea niciodată în lista de curățenie.</div><br>`,async()=>{closeModal();await api('/api/mail/protect',{addr});
+  R.groups.forEach(g=>{g.senders.filter(s=>s.addr===addr).forEach(s=>s.msgs.forEach(m=>sel.delete(m.id)));g.senders=g.senders.filter(s=>s.addr!==addr);g.count=g.senders.reduce((a,s)=>a+s.count,0)});render();toast('Expeditor protejat.')})}
+load();
+</script>
+</body>
+</html>
