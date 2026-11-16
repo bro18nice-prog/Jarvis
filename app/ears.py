@@ -110,8 +110,10 @@ class Ears:
         return self.transcribe(audio)
 
     def _run(self, audio, lang):
-        segs, info = self.model.transcribe(audio, language=lang, beam_size=1, vad_filter=True,
-                                           condition_on_previous_text=False, hotwords="Jarvis")
+        scurt = len(audio) < SR * 5      # comenzile scurte merita o cautare mai atenta
+        segs, info = self.model.transcribe(audio, language=lang, beam_size=5 if scurt else 1, vad_filter=True,
+                                           condition_on_previous_text=False,
+                                           hotwords="Jarvis, echipa, raportul echipei, cercetașul, secretarul, designerul, redactorul, controlorul, misiune, lista firme, pregătește, taci, mod gaming, raport mail, volum")
         return " ".join(s.text.strip() for s in segs).strip(), info
 
     def transcribe(self, audio):
@@ -125,7 +127,13 @@ class Ears:
             probs = dict(getattr(info, "all_language_probs", None) or [])
             det = "en" if probs.get("en", 0) > 1.5 * probs.get("ro", 0) else "ro"
             text, info = self._run(audio, det)
-        if det == "en" and len(text.split()) <= 3:
+        if det == "en" and len(text.split()) <= 5 and prob < 0.9:
+            # comenzi scurte romanesti sunt des luate drept engleza ("taci" -> "touch", "echipa" -> "equipa"): reascult in romana
+            ro_text = self._run(audio, "ro")[0]
+            if ro_text:
+                text = ro_text
+            det = "ro"
+        elif det == "en" and len(text.split()) <= 3:
             det = "ro"   # cateva cuvinte englezesti (nume de aplicatii, jocuri) nu inseamna ca vorbesti engleza
         self.last_lang = det
         return text
