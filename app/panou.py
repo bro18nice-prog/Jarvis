@@ -228,6 +228,47 @@ class Handler(BaseHTTPRequestHandler):
             self._json({k: env.get(k, "") for k in SETTINGS})
         elif self.path.startswith("/api/log"):
             self._json({"log": tail(LOG_FILE, 80), "console": tail(CONSOLE_LOG, 25)})
+        elif self.path == "/mail" or self.path.startswith("/mail?"):
+            with open(os.path.join(APP, "ui", "mail.html"), "rb") as f:
+                body = f.read()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+        elif self.path.startswith("/api/mail/last"):
+            import mail_curator
+            self._json(mail_curator.last_scan() or {})
+        elif self.path == "/echipa":
+            with open(os.path.join(APP, "ui", "echipa.html"), "rb") as f:
+                body = f.read()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+        elif self.path.startswith("/api/echipa"):
+            import echipa
+            self._json({"roluri": echipa.stare(), "jurnal": echipa.jurnal(80), "cifre": echipa.cifre()})
+        elif self.path == "/telegram":
+            with open(os.path.join(APP, "ui", "telegram.html"), "rb") as f:
+                body = f.read()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+        elif self.path.startswith("/api/telegram"):
+            env = read_env()
+            try:
+                with open(os.path.join(DATA, "telegram.json"), encoding="utf-8") as f:
+                    st = json.load(f)
+            except Exception:
+                st = {}
+            owner = env.get("TELEGRAM_CHAT_ID", "")
+            self._json({"token": bool(env.get("TELEGRAM_TOKEN")), "bot": st.get("bot", ""), "owner": owner,
+                        "owner_name": st.get("owner_name", ""),
+                        "pending": {k: v for k, v in (st.get("pending") or {}).items() if k != owner}})
         else:
             self._json({"error": "nu exista"}, 404)
 
@@ -302,6 +343,59 @@ class Handler(BaseHTTPRequestHandler):
             if t:
                 webbrowser.open(t) if t.startswith("http") else os.startfile(t)
             msg = "Deschis."
+        elif p.startswith("/api/mail/"):
+            origin = self.headers.get("Origin")
+            if origin and origin != f"http://127.0.0.1:{PANEL_PORT}":
+                return self._json({"error": "refuzat"}, 403)   # doar pagina panoului poate cere asta
+            import mail_curator as mc
+            try:
+                if p == "/api/mail/scan":
+                    return self._json(mc.scan())
+                if p == "/api/mail/trash":
+                    return self._json(mc.trash(str(b.get("id", "")), [str(x) for x in (b.get("ids") or [])]))
+                if p == "/api/mail/unsub":
+                    return self._json(mc.unsubscribe(str(b.get("addr", ""))))
+                if p == "/api/mail/protect":
+                    mc.protect_sender(str(b.get("addr", "")))
+                    return self._json({"msg": "ok"})
+            except Exception as e:
+                return self._json({"error": str(e)[:200]})
+            return self._json({"error": "nu exista"}, 404)
+        elif p.startswith("/api/telegram/"):
+            origin = self.headers.get("Origin")
+            if origin and origin != f"http://127.0.0.1:{PANEL_PORT}":
+                return self._json({"error": "refuzat"}, 403)
+            tg_file = os.path.join(DATA, "telegram.json")
+            try:
+                with open(tg_file, encoding="utf-8") as f:
+                    st = json.load(f)
+            except Exception:
+                st = {"pending": {}}
+            if p == "/api/telegram/token":
+                tok = str(b.get("token", "")).strip()
+                if not re.fullmatch(r"\d{5,}:[A-Za-z0-9_-]{30,}", tok):
+                    return self._json({"msg": "Tokenul nu arata bine. Copiaza-l din nou de la BotFather."})
+                write_env({"TELEGRAM_TOKEN": tok, "TELEGRAM_CHAT_ID": ""})
+                msg = "Token salvat."
+                if is_running():
+                    stop_jarvis()
+                    time.sleep(1.5)
+                    start_jarvis()
+                    msg += " Am repornit Jarvis. Acum scrie-i botului /start."
+            elif p == "/api/telegram/approve":
+                chat = str(b.get("chat", ""))
+                if chat not in (st.get("pending") or {}):
+                    return self._json({"msg": "Cererea nu mai exista."})
+                st["owner_name"] = st["pending"].pop(chat)
+                with open(tg_file, "w", encoding="utf-8") as f:
+                    json.dump(st, f, ensure_ascii=False)
+                write_env({"TELEGRAM_CHAT_ID": chat})
+                msg = "Telefon aprobat. Scrie-i botului /start."
+            elif p == "/api/telegram/revoke":
+                write_env({"TELEGRAM_CHAT_ID": ""})
+                msg = "Acces revocat."
+            else:
+                return self._json({"error": "nu exista"}, 404)
         elif p == "/api/quit":
             self._json({"msg": "Panoul se inchide. Jarvis ramane cum era."})
             threading.Thread(target=lambda: (time.sleep(0.5), os._exit(0)), daemon=True).start()
