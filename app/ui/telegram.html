@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Jarvis · Telefon</title>
+<style>
+:root{--c:#41f3d0;--line:rgba(65,243,208,.22);--txt:#d6fff6;--dim:#6f9d95;--gold:#ffcf6a}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -10%,#0b2a2c 0,#03090c 60%) fixed;color:var(--txt);font:15px/1.5 Bahnschrift,"Segoe UI",system-ui,sans-serif}
+main{max-width:720px;margin:0 auto;padding:30px 24px}
+h1{font-size:16px;letter-spacing:.5em;margin:0 0 6px}p.sub{color:var(--dim);margin:0 0 22px}
+.step{border:1px solid var(--line);background:rgba(8,30,32,.6);padding:16px 18px;margin-bottom:14px}
+.step h2{margin:0 0 8px;font-size:12px;letter-spacing:.3em;color:var(--c)}
+.step.done{opacity:.6}.step.done h2::after{content:"  ✓";color:var(--gold)}
+input{width:100%;background:#041214;border:1px solid var(--line);color:var(--txt);padding:10px;font:14px Consolas,monospace;margin:8px 0}
+button{background:rgba(6,32,34,.7);color:var(--c);border:1px solid rgba(65,243,208,.4);padding:9px 18px;font:600 11px Bahnschrift,"Segoe UI",sans-serif;letter-spacing:.2em;cursor:pointer}
+button:hover{background:rgba(65,243,208,.15)}
+.req{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-top:1px dashed var(--line)}
+code{color:var(--gold)}.msg{color:var(--gold);min-height:22px}
+ol{margin:6px 0 0;padding-left:20px;color:#bfeee4}
+</style></head><body><main>
+<h1>TELEFON</h1><p class="sub">Controlezi Jarvis din aplicația Telegram, de oriunde. Răspunde doar telefonului aprobat de tine aici.</p>
+<div class="step" id="s1"><h2>1 · CREEAZĂ BOTUL (2 MINUTE, PE TELEFON)</h2>
+<ol><li>În Telegram, caută <code>@BotFather</code> și scrie-i <code>/newbot</code>.</li><li>Dă-i un nume (ex. <code>Jarvis</code>) și un username terminat în <code>bot</code> (ex. <code>stefan_jarvis_bot</code>).</li><li>BotFather îți dă un <b>token</b> (arată ca <code>123456:ABC-...</code>). Lipește-l mai jos.</li></ol>
+<input id="tok" placeholder="token de la BotFather" autocomplete="off"><button onclick="saveTok()">SALVEAZĂ TOKENUL</button></div>
+<div class="step" id="s2"><h2>2 · SCRIE-I BOTULUI</h2><div>Deschide botul <code id="bot">…</code> în Telegram și scrie-i <code>/start</code>. Cererea apare mai jos în câteva secunde.</div><div id="pending"></div></div>
+<div class="step" id="s3"><h2>3 · GATA</h2><div id="done">Încă nu ai aprobat niciun telefon.</div></div>
+<div class="msg" id="msg"></div>
+</main><script>
+const $=i=>document.getElementById(i);const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function api(p,b){return (await fetch(p,{method:b?'POST':'GET',headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined})).json()}
+async function saveTok(){const r=await api('/api/telegram/token',{token:$('tok').value.trim()});$('msg').textContent=r.msg||r.error||'';$('tok').value='';refresh()}
+async function approve(c){const r=await api('/api/telegram/approve',{chat:c});$('msg').textContent=r.msg||r.error||'';refresh()}
+async function revoke(){const r=await api('/api/telegram/revoke',{});$('msg').textContent=r.msg||'';refresh()}
+async function refresh(){const s=await api('/api/telegram');
+ $('s1').classList.toggle('done',s.token);$('bot').textContent=s.bot||'(apare după ce salvezi tokenul și Jarvis repornește)';
+ $('s2').classList.toggle('done',!!s.owner);
+ $('pending').innerHTML=Object.entries(s.pending||{}).map(([c,w])=>`<div class="req"><span>${esc(w)}</span><button onclick="approve('${esc(c)}')">APROBĂ</button></div>`).join('');
+ $('done').innerHTML=s.owner?`Telefon aprobat: <b>${esc(s.owner_name||s.owner)}</b>. Scrie-i botului <code>/start</code> ca să vezi comenzile. <button onclick="revoke()" style="margin-left:10px">REVOCĂ</button>`:'Încă nu ai aprobat niciun telefon.';}
+refresh();setInterval(refresh,3000);
+</script></body></html>
