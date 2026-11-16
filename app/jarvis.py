@@ -60,7 +60,18 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _local(self):
+        """True doar pentru cereri trimise catre adresa locala a interfetei, din pagina ei.
+        Opreste paginile web straine sa citeasca starea sau sa dea comenzi (CSRF, DNS rebinding)."""
+        ok = (f"127.0.0.1:{PORT}", f"localhost:{PORT}")
+        if (self.headers.get("Host") or "").lower() not in ok:
+            return False
+        origin = (self.headers.get("Origin") or "").lower()
+        return not origin or origin in tuple("http://" + h for h in ok)
+
     def do_GET(self):
+        if not self._local():
+            return self._send(403, b'{"error": "refuzat"}', "application/json")
         if self.path.startswith("/state"):
             with lock:
                 body = json.dumps(state).encode()
@@ -76,6 +87,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, f.read(), "text/html; charset=utf-8")
 
     def do_POST(self):
+        if not self._local():
+            return self._send(403, b'{"error": "refuzat"}', "application/json")
         if self.path.startswith("/talk"):
             force_listen.set()
         elif self.path.startswith("/view"):

@@ -193,6 +193,15 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
 
+    def _local(self):
+        """True doar pentru cereri trimise catre adresa locala a panoului, din pagina lui.
+        Opreste paginile web straine sa citeasca sau sa schimbe ceva (CSRF, DNS rebinding)."""
+        ok = (f"127.0.0.1:{PANEL_PORT}", f"localhost:{PANEL_PORT}")
+        if (self.headers.get("Host") or "").lower() not in ok:
+            return False
+        origin = (self.headers.get("Origin") or "").lower()
+        return not origin or origin in tuple("http://" + h for h in ok)
+
     def _json(self, obj, code=200):
         body = json.dumps(obj).encode()
         self.send_response(code)
@@ -209,6 +218,8 @@ class Handler(BaseHTTPRequestHandler):
             return {}
 
     def do_GET(self):
+        if not self._local():
+            return self._json({"error": "refuzat"}, 403)
         if self.path == "/" or self.path.startswith("/index"):
             with open(os.path.join(APP, "ui", "panou.html"), "rb") as f:
                 body = f.read()
@@ -273,7 +284,9 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"error": "nu exista"}, 404)
 
     def do_POST(self):
-        b = self._body()
+        b = self._body()  # citit inainte de un eventual refuz, altfel conexiunea se rupe la client
+        if not self._local():
+            return self._json({"error": "refuzat"}, 403)
         p = self.path
         if p == "/api/start":
             msg = start_jarvis()

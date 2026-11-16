@@ -69,6 +69,11 @@ class Remote:
         self.api = f"https://api.telegram.org/bot{self.token}/"
         self.offset = 0
 
+    def _err(self, e):
+        """Textul unei erori, fara tokenul botului (erorile de retea contin adresa completa a API-ului)."""
+        s = str(e)
+        return s.replace(self.token, "***") if self.token else s
+
     # ---------- Telegram ----------
     def _call(self, method, **kw):
         files = kw.pop("files", None)
@@ -81,7 +86,7 @@ class Remote:
             try:
                 self._call("sendMessage", chat_id=chat, text=text[i:i + 3800] or "...")
             except Exception as e:
-                self.log(f"Telegram: nu am putut trimite ({e})")
+                self.log(f"Telegram: nu am putut trimite ({self._err(e)})")
 
     def notify(self, text):
         chat = _env().get("TELEGRAM_CHAT_ID", "").strip()
@@ -405,7 +410,7 @@ class Remote:
                 self.log(f"Telegram: tokenul nu e bun ({me.get('description')})")
                 return
         except Exception as e:
-            self.log(f"Telegram: fara internet ({e}), reincerc")
+            self.log(f"Telegram: fara internet ({self._err(e)}), reincerc")
         while True:
             try:
                 r = requests.get(self.api + "getUpdates", params={"timeout": 30, "offset": self.offset},
@@ -422,9 +427,9 @@ class Remote:
         try:
             self.handle(msg)
         except Exception as e:
-            self.log(f"Telegram: eroare {e}")
+            self.log(f"Telegram: eroare {self._err(e)}")
             try:
-                self.send(str(msg["chat"]["id"]), f"Eroare: {e}")
+                self.send(str(msg["chat"]["id"]), f"Eroare: {self._err(e)}")
             except Exception:
                 pass
 
