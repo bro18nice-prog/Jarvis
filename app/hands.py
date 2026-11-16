@@ -511,9 +511,66 @@ def lol_opreste_cautarea() -> str:
     return "Am oprit cautarea." if r.ok else f"Nu am putut opri cautarea ({r.status_code})."
 
 
-ALL_TOOLS = [ora_si_data, cauta_pe_internet, citeste_pagina, deschide_site,
+def inchide_pagina() -> str:
+    """Inchide pagina (tabul) deschisa in browser: cea din fata sau, daca in fata nu e un browser, ultima folosita."""
+    import ctypes
+    import re
+    import time
+    from ctypes import wintypes
+    user32 = ctypes.windll.user32
+    BR = ("chrome", "edge", "firefox", "opera", "brave")
+
+    def title(h):
+        n = user32.GetWindowTextLengthW(h)
+        buf = ctypes.create_unicode_buffer(n + 1)
+        user32.GetWindowTextW(h, buf, n + 1)
+        return buf.value
+
+    def ok(t):
+        t = t.lower()
+        return any(b in t for b in BR) and "jarvis" not in t
+
+    h = user32.GetForegroundWindow()
+    if not ok(title(h)):
+        found = []
+
+        def cb(hwnd, _):
+            if user32.IsWindowVisible(hwnd) and ok(title(hwnd)):
+                found.append(hwnd)
+            return True
+        user32.EnumWindows(ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)(cb), 0)
+        if not found:
+            return "Nu am gasit nicio pagina deschisa in browser."
+        h = found[0]
+        user32.ShowWindow(h, 9)
+        user32.SetForegroundWindow(h)
+        time.sleep(0.5)
+        if user32.GetForegroundWindow() != h:
+            return "Nu am putut aduce browserul in fata ca sa inchid pagina."
+    nume = re.sub(r" [-\u2013\u2014] [^-\u2013\u2014]*$", "", title(h)).strip()[:60]
+    user32.keybd_event(0x11, 0, 0, 0)
+    user32.keybd_event(0x57, 0, 0, 0)
+    user32.keybd_event(0x57, 0, 2, 0)
+    user32.keybd_event(0x11, 0, 2, 0)
+    return f"Am inchis pagina: {nume}."
+
+
+_EXE = {"spotify": "Spotify.exe", "discord": "Discord.exe", "steam": "steam.exe", "chrome": "chrome.exe", "edge": "msedge.exe", "whatsapp": "WhatsApp.exe"}
+
+
+def inchide_aplicatie(nume: str) -> str:
+    """Inchide o aplicatie cunoscuta: spotify, discord, steam, chrome, edge, whatsapp."""
+    import subprocess
+    exe = _EXE.get(nume.strip().lower())
+    if not exe:
+        return "Pot inchide doar: " + ", ".join(_EXE) + "."
+    r = subprocess.run(["taskkill", "/IM", exe], capture_output=True, text=True, creationflags=0x08000000)
+    return f"Am inchis {nume}." if r.returncode == 0 else f"{nume} nu era deschis."
+
+
+ALL_TOOLS = [inchide_pagina, inchide_aplicatie, ora_si_data, cauta_pe_internet, citeste_pagina, deschide_site,
              deschide_aplicatie, seteaza_timer, noteaza, citeste_notitele,
              control_media, pune_pe_youtube, pune_pe_spotify,
              adauga_contact, lista_contacte, trimite_whatsapp,
-             citeste_mailuri, trimite_mail,
+             trimite_mail,
              lol_status, lol_accepta_automat, deschide_league, lol_joaca, lol_opreste_cautarea]

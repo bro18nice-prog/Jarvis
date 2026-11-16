@@ -25,7 +25,7 @@ WAKE_VARIANTS = [WAKE, "jarvi", "jarviz", "djarvis", "giarvis", "jervis", "jarve
 ALWAYS_LISTEN = os.getenv("ASCULTA_MEREU", "nu").lower() in ("da", "yes", "true", "1")
 FOLLOW_UP_SEC = float(os.getenv("FEREASTRA_CONVERSATIE_SEC", "12"))
 
-state = {"state": "pornire", "heard": "", "reply": "", "log": [], "info": ""}
+state = {"state": "pornire", "heard": "", "reply": "", "log": [], "info": "", "view": ""}
 lock = threading.Lock()
 force_listen = threading.Event()
 stop_speaking = threading.Event()
@@ -60,17 +60,39 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _local(self):
+        """True doar pentru cereri trimise catre adresa locala a interfetei, din pagina ei.
+        Opreste paginile web straine sa citeasca starea sau sa dea comenzi (CSRF, DNS rebinding)."""
+        ok = (f"127.0.0.1:{PORT}", f"localhost:{PORT}")
+        if (self.headers.get("Host") or "").lower() not in ok:
+            return False
+        origin = (self.headers.get("Origin") or "").lower()
+        return not origin or origin in tuple("http://" + h for h in ok)
+
     def do_GET(self):
+        if not self._local():
+            return self._send(403, b'{"error": "refuzat"}', "application/json")
         if self.path.startswith("/state"):
             with lock:
                 body = json.dumps(state).encode()
             return self._send(200, body, "application/json")
+        if self.path.startswith("/api/echipa"):
+            import echipa
+            body = json.dumps({"roluri": echipa.stare(), "jurnal": echipa.jurnal(80), "cifre": echipa.cifre()}).encode()
+            return self._send(200, body, "application/json")
+        if self.path.startswith("/echipa"):
+            with open(os.path.join(ROOT, "app", "ui", "echipa.html"), "rb") as f:
+                return self._send(200, f.read(), "text/html; charset=utf-8")
         with open(os.path.join(ROOT, "app", "ui", "index.html"), "rb") as f:
             return self._send(200, f.read(), "text/html; charset=utf-8")
 
     def do_POST(self):
+        if not self._local():
+            return self._send(403, b'{"error": "refuzat"}', "application/json")
         if self.path.startswith("/talk"):
             force_listen.set()
+        elif self.path.startswith("/view"):
+            set_state(view="")
         elif self.path.startswith("/stop"):
             stop_speaking.set()
             try:
@@ -142,7 +164,77 @@ def main():
             except Exception as e:
                 log(f"Voce: eroare {e}")
 
-    hands.announce = speak
+    import telegram_remote
+    brain_lock = threading.Lock()
+
+    def run_command(text):
+        """O comanda scrisa (de pe telefon): intai comenzile rapide locale, apoi creierul."""
+        try:
+            import quick
+            local, rest = quick.handle(text)
+        except Exception as e:
+            log(f"Comenzi rapide: eroare {e}")
+            local, rest = None, text
+        reply = local or ""
+        if rest:
+            with brain_lock:
+                more = brain.ask(rest)
+            reply = (reply + " " + more).strip()
+        log(f"Jarvis (Telegram): {reply}")
+        return reply
+
+    def status_text():
+        with lock:
+            st = dict(state)
+        return f"Jarvis e pornit pe laptop. Stare: {st.get('state')}. {st.get('info', '')}"
+
+    remote = telegram_remote.Remote(log, run_command, status_text)
+    remote.start()
+
+    def announce(text):
+        """Anunturi (League gata, timer etc.): pe telefon daca ai scris recent de acolo, altfel cu voce."""
+        if telegram_remote.recent_remote():
+            remote.notify(text)
+        else:
+            speak(text)
+
+    hands.announce = announce
+    import asistent
+    asistent.start(remote.notify, speak, run_command, log, telegram_remote.recent_remote)
+    try:  # module optionale: nu fac parte din varianta publica a proiectului
+        import prospectare
+        prospectare.start(remote, log)
+        import echipa
+        echipa.start(log, set_state)
+    except ImportError:
+        log("Modulele optionale (prospectare, echipa) nu sunt instalate.")
+
+    def mail_reports():
+        """Raport de mail automat la orele din RAPORT_MAIL_ORE (scanare locala, nu sterge nimic)."""
+        import mail_curator
+        ore = [t.strip() for t in os.getenv("RAPORT_MAIL_ORE", "09:30,19:30").split(",") if t.strip()]
+        facute = set()
+        while True:
+            time.sleep(20)
+            acum = time.strftime("%H:%M")
+            cheie = time.strftime("%Y-%m-%d ") + acum
+            if acum in ore and cheie not in facute and mail_curator.configured():
+                facute.add(cheie)
+                try:
+                    import quick
+                    res = mail_curator.scan(log)
+                    log("Mail: raport automat pregatit")
+                    if sum(g["count"] for g in res["groups"]) or res["important"]:
+                        text = quick._mail_voice(res)
+                        remote.notify(remote._mail_command(None, "lista mail") or text)
+                        _vechi = (text.replace("v-am deschis lista", "lista e în panou, pe laptop,"))
+                        if not telegram_remote.recent_remote():
+                            hands.deschide_site("http://127.0.0.1:8764/mail")
+                            speak(text)
+                except Exception as e:
+                    log(f"Mail: raportul automat nu a mers ({e})")
+
+    threading.Thread(target=mail_reports, daemon=True).start()
 
     set_state(info=f"Urechi: {ears.device_info} | Creier: {brain.model}")
     greeting = "Sistemele sunt online, st\u0103p\u00e2ne. A\u0219tept ordinele."
@@ -153,9 +245,12 @@ def main():
     awake_until = 0.0
     while True:
         try:
+            if asistent.eco_tick(ears, log, set_state, open_face):
+                continue
             forced = force_listen.is_set()
             force_listen.clear()
             awake = forced or ALWAYS_LISTEN or time.time() < awake_until
+            _fu = time.time() < awake_until   # raspunde la o intrebare de-a mea
             set_state(state="asculta" if awake else "asteapta")
             text = ears.listen()
             if not text:
@@ -169,7 +264,9 @@ def main():
                 speak("Yes, sir?" if ears.last_lang == "en" else "Da, st\u0103p\u00e2ne?")
                 awake_until = time.time() + FOLLOW_UP_SEC
                 continue
-            if command.lower().strip(" .!") in ("stop", "taci", "gata", "multumesc", "mersi", "thanks", "thank you", "that's all"):
+            _cmd = re.sub(r"[^\w ]", "", command.lower()).strip()
+            if _cmd in ("stop", "taci", "gata", "multumesc", "mulțumesc", "mersi", "thanks", "thank you", "thats all", "touch", "tac", "tachi", "taci te rog",
+                        "taci din gura", "nu mai vorbi", "nu mai vorbiti", "nu mai vorbiți", "liniste", "liniște", "shut up", "ajunge", "destul"):
                 speak("Very well, sir." if ears.last_lang == "en" else "Am \u00een\u021beles, st\u0103p\u00e2ne.")
                 awake_until = 0
                 continue
@@ -183,8 +280,15 @@ def main():
             if local:
                 log("Executat local (fara Google)")
             reply = local or ""
+            _w = re.sub(r"[^\w ]", "", rest.lower()).split() if rest else []
+            if rest and not local and not _fu and len(_w) == 1 and _w[0] not in ("da", "nu", "yes", "no", "salut", "buna", "hello", "hi", "hey", "ok", "okay", "ajutor", "help", "confirm", "anuleaza", "noroc", "servus"):
+                # un singur cuvant, fara nicio comanda cunoscuta: nu ghicesc si nu dau definitii, intreb
+                rest = ""
+                reply = f"Am auzit doar \u201e{_w[0]}\u201d, st\u0103p\u00e2ne. Ce dori\u021bi s\u0103 fac?"
+                log("Un singur cuvant neclar: intreb, nu trimit la Google")
             if rest:
-                more = brain.ask(rest)
+                with brain_lock:
+                    more = brain.ask(rest)
                 reply = (reply + " " + more).strip()
             log(f"Jarvis: {reply}")
             rl = "en" if re.search(r"\bsir\b", reply, re.I) else ("ro" if re.search("[\u0103\u00e2\u00ee\u0219\u021b\u015f\u0163]", reply) else None)

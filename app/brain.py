@@ -19,10 +19,16 @@ NU spune niciodata ca ai facut ceva daca nu ai apelat unealta potrivita si ea nu
 Pentru muzica: "pune X" pe YouTube -> pune_pe_youtube; pe Spotify -> pune_pe_spotify; "play/pauza/urmatoarea/da mai tare" -> control_media.
 Mesaje WhatsApp si emailuri: apeleaza intai cu confirmat=False, citeste-i lui Stefan destinatarul si textul, si trimite (confirmat=True) DOAR dupa un "da" clar. Daca spune nu, nu trimite.
 Nu poti citi mesajele de pe WhatsApp; poti doar trimite.
+Mailurile NU le citesti tu (confidentialitate). Daca Stefan intreaba de mailuri, spune-i sa zica "Jarvis, verifica mailul": scanarea si curatenia se fac local si el aproba totul in panou.
 Limba: numele proprii in engleza (aplicatii, jocuri, melodii, ex. "League of Legends", "Spotify") NU inseamna ca Stefan vorbeste engleza. Raspunzi in engleza doar daca propozitia lui e clar in engleza; altfel in romana.
 Daca cererea e un singur cuvant cu numele unei aplicatii sau al unui joc, inseamna "deschide-l".
 League of Legends: "deschide lolu/league" -> deschide_league (se actualizeaza singur si anunta cand e gata); "da play", "cauta meci", "intra in coada" -> lol_joaca; "accepta meciul singur" -> lol_accepta_automat. Daca clientul abia se deschide, spune-i sa-ti zica din nou dupa ce s-a incarcat.
-Textul vine din recunoastere vocala, deci poate avea greseli: ghiceste ce a vrut sa spuna Stefan."""
+Textul vine din recunoastere vocala, deci poate avea greseli: ghiceste ce a vrut sa spuna Stefan DOAR daca e evident.
+Daca primesti un singur cuvant sau un fragment (ex. "secretar", "pagina", "echipa", "maine") si nu e clar ce actiune vrea Stefan, NU explica ce inseamna cuvantul si NU da definitii: intreaba scurt la ce se refera (ex. "Ce doriti sa fac cu pagina, stapane?"). Explici un cuvant doar daca Stefan intreaba explicit "ce inseamna X".
+Cand o cerere poate insemna doua lucruri diferite, pune O intrebare scurta de clarificare in loc sa alegi tu la intamplare.
+"Inchide pagina/tabul/site-ul" -> inchide_pagina; "inchide spotify/discord" -> inchide_aplicatie.
+Daca fraza nu are sens ca o comanda sau o intrebare (cuvinte la intamplare, propozitie rupta), NU apela nicio unealta si NU confirma nimic: raspunde exact "Nu am inteles, stapane. Repetati, va rog."
+Raspunsuri ca "Am executat", "Am trecut mai departe", "Am pornit" sunt INTERZISE daca nu ai apelat chiar acum o unealta care a reusit."""
 
 FALLBACK_MODELS = ["gemini-flash-lite-latest", "gemini-flash-latest"]
 THINK = ["MINIMAL", "LOW", None]   # cat "gandeste" modelul: putin = raspuns rapid
@@ -104,7 +110,7 @@ class Brain:
             return False
         self.model = self.models[i + 1]
         self.log(f"Creier: trec pe modelul {self.model}")
-        self.new_chat(keep_history=True)
+        self.new_chat()
         return True
 
     def ask(self, text):

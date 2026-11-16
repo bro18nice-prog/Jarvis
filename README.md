@@ -11,6 +11,9 @@ Acesta este proiectul Jarvis separat. [Titan](https://github.com/bro18nice-prog/
 - Recunoaștere vocală prin faster-whisper, cu încercare GPU NVIDIA și revenire pe CPU.
 - Voce online Edge TTS, cu Piper și vocea Windows ca alternative.
 - Căutare web, citirea paginilor, YouTube, Spotify, timere și notițe.
+- Telecomandă prin Telegram: comenzi text de pe telefon, capturi de ecran, trimiterea fișierelor, blocarea sau oprirea laptopului cu confirmare. Răspunde doar conversației aprobate din panou.
+- Curățenie în Gmail făcută local: scanează doar antetele și mută în Coș numai ce aprobi.
+- Agendă, mementouri, rutine și brief de dimineață, păstrate local.
 - Integrări opționale pentru Gmail, contacte WhatsApp și clientul League of Legends.
 - Panou pentru pornire/oprire, configurare, jurnal și pornire automată cu Windows.
 
@@ -38,6 +41,7 @@ Panoul folosește `http://127.0.0.1:8764`, iar interfața asistentului `http://1
 - `VOCE_MOTOR=edge` pentru voce online sau `piper` pentru sinteză locală.
 - `MODEL_GEMINI` pentru modelul preferat; codul încearcă și alternative disponibile.
 - Gmail este opțional și folosește o parolă de aplicație configurată local. Contactele WhatsApp se adaugă în panou sau prin comenzi.
+- `TELEGRAM_TOKEN` este tokenul botului creat cu @BotFather. Conversația care are voie să dea comenzi se aprobă din pagina **Telegram** a panoului.
 
 ## Structură
 
@@ -49,6 +53,9 @@ Panoul folosește `http://127.0.0.1:8764`, iar interfața asistentului `http://1
 | `app/voice.py` | Sinteză vocală și redare |
 | `app/quick.py` | Interpretarea comenzilor rapide locale |
 | `app/hands.py` | Acțiuni, căutare și integrări |
+| `app/telegram_remote.py` | Telecomanda prin Telegram |
+| `app/mail_curator.py` | Scanarea și curățenia Gmail |
+| `app/asistent.py` | Agendă, mementouri și rutine |
 | `app/panou.py` | Panoul de configurare și control |
 | `app/ui/` | Interfețele HTML/CSS/JavaScript |
 | `scripts/install.ps1` | Instalare și descărcarea modelelor |
